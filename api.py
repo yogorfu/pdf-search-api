@@ -11,6 +11,37 @@ DB_FILE = "knowledge_base.db"
 # A simple set of stopwords to filter out less important words
 STOPWORDS = {"cases", "that", "deal", "with", "and", "the", "of", "for", "in", "a", "an"}
 
+def ensure_fts_table():
+    """
+    Checks if the FTS virtual table 'documents_fts' exists.
+    If it doesn't, creates it and populates it from the 'documents' table.
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    try:
+        # Try a simple query to see if the FTS table exists
+        cursor.execute("SELECT count(*) FROM documents_fts")
+        print("FTS table exists.")
+    except sqlite3.OperationalError:
+        print("FTS table 'documents_fts' not found. Creating now...")
+        # Create the FTS5 virtual table
+        cursor.execute("""
+            CREATE VIRTUAL TABLE documents_fts USING fts5(
+                filename,
+                url,
+                content
+            )
+        """)
+        # Populate the FTS table from the existing documents table
+        cursor.execute("""
+            INSERT INTO documents_fts (filename, url, content)
+            SELECT filename, url, content FROM documents
+        """)
+        conn.commit()
+        print("FTS table 'documents_fts' created and populated successfully.")
+    finally:
+        conn.close()
+
 def extract_keywords(query):
     """
     Tokenizes the query, removes stopwords, and returns a string suitable for FTS MATCH.
@@ -26,7 +57,6 @@ def search_database(query):
     Uses the extracted keywords to search the FTS virtual table.
     Make sure you've created an FTS table (e.g., documents_fts) that indexes filename, url, and content.
     """
-    # Extract a flexible query string from the user input
     fts_query = extract_keywords(query)
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -56,5 +86,7 @@ def query_database():
     })
 
 if __name__ == '__main__':
+    # Ensure FTS table exists before running the app
+    ensure_fts_table()
     # Running on port 5001
     app.run(host="0.0.0.0", port=5001, debug=True)
