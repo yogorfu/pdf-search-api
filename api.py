@@ -33,7 +33,10 @@ def query_database():
         return jsonify({"answer": "No relevant information found."})
 
     return jsonify({
-        "results": [{"filename": r[0], "url": r[1], "content": r[2][:500] + "..."} for r in results]
+        "results": [
+            {"filename": r[0], "url": r[1], "content": r[2]}  # Return full text content
+            for r in results
+        ]
     })
 
 if __name__ == '__main__':
